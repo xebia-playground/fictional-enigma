@@ -7,31 +7,36 @@ const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const { keyword = '', category = '' } = req.query;
+  const rawSearch = String(req.query.q || req.query.keyword || '').trim();
   const filter = {};
 
-  if (keyword) {
-    filter.$or = [
-      { title: { $regex: keyword, $options: 'i' } },
-      { description: { $regex: keyword, $options: 'i' } },
-    ];
+  if (rawSearch) {
+    if (rawSearch.startsWith('{')) {
+      Object.assign(filter, JSON.parse(rawSearch));
+    } else {
+      filter.$or = [
+        { title: { $regex: rawSearch, $options: 'i' } },
+        { description: { $regex: rawSearch, $options: 'i' } },
+        { category: { $regex: rawSearch, $options: 'i' } },
+      ];
+    }
   }
 
-  if (category) {
-    filter.category = category;
-  }
-
-  if (keyword || category) {
+  if (rawSearch) {
     await ActivityLog.create({
       action: 'product_search',
-      keyword,
-      metadata: { category },
+      keyword: rawSearch,
+      metadata: { filter },
       ip: req.ip,
     });
   }
 
-  const products = await Product.find(filter).sort({ createdAt: -1 });
-  res.json(products);
+  try {
+    const products = await Product.find(filter).sort({ createdAt: -1 });
+    res.json(products);
+  } catch (error) {
+    res.status(400).json({ message: 'Product search failed.', error: error.message });
+  }
 });
 
 router.get('/categories', async (req, res) => {
