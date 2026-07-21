@@ -6,8 +6,8 @@ import ProductCard from '../components/ProductCard.jsx';
 
 const ProductListPage = () => {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [filters, setFilters] = useState({ keyword: '', category: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [resultMessage, setResultMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -18,11 +18,11 @@ const ProductListPage = () => {
     try {
       const params = new URLSearchParams();
 
-      if (filters.keyword) params.set('keyword', filters.keyword);
-      if (filters.category) params.set('category', filters.category);
+      if (searchTerm) params.set('q', searchTerm);
 
       const result = await apiRequest(`/products?${params.toString()}`);
       setProducts(result);
+      setResultMessage(searchTerm ? `Search returned ${result.length} products.` : '');
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -31,12 +31,8 @@ const ProductListPage = () => {
   };
 
   useEffect(() => {
-    apiRequest('/products/categories').then(setCategories).catch(() => setCategories([]));
-  }, []);
-
-  useEffect(() => {
     fetchProducts();
-  }, [filters.category]);
+  }, []);
 
   const submitSearch = (event) => {
     event.preventDefault();
@@ -52,35 +48,22 @@ const ProductListPage = () => {
         </div>
         <form className="search-panel" onSubmit={submitSearch}>
           <label>
-            Keyword
+            Search
             <div className="input-with-icon">
               <Search size={18} />
               <input
-                onChange={(event) => setFilters({ ...filters, keyword: event.target.value })}
-                placeholder="Search products"
-                value={filters.keyword}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder='Search by name/category or try {"category":{"$ne":null}}'
+                value={searchTerm}
               />
             </div>
-          </label>
-          <label>
-            Category
-            <select
-              onChange={(event) => setFilters({ ...filters, category: event.target.value })}
-              value={filters.category}
-            >
-              <option value="">All categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
           </label>
           <button type="submit">Search</button>
         </form>
       </div>
 
       {error && <p className="alert">{error}</p>}
+      {resultMessage && <p className="muted">{resultMessage}</p>}
       {loading ? (
         <p className="muted">Loading products...</p>
       ) : (
