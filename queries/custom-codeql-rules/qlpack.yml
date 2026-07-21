@@ -1,0 +1,4 @@
+name: devshop/custom-codeql-rules
+version: 0.0.1
+libraryPathDependencies:
+- codeql/javascript-all
