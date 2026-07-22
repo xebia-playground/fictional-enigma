@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const User = require('../models/User');
+const userRepository = require('../repositories/userRepository');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -12,7 +12,7 @@ const authenticate = async (req, res, next) => {
     }
 
     const payload = jwt.verify(token, process.env.JWT_SECRET || 'devshop-local-secret');
-    const user = await User.findById(payload.id).select('-password');
+    const user = await userRepository.findUserByIdWithoutPassword(payload.id);
 
     if (!user) {
       return res.status(401).json({ message: 'User not found.' });
