@@ -14,8 +14,24 @@
 
 import javascript
 
-predicate isBackendLayer(File file, string layer) {
-  file.getRelativePath().regexpMatch("backend/" + layer + "/.*\\.js")
+predicate isRouteFile(File file) {
+  file.getRelativePath().regexpMatch("backend/routes/.*\\.js")
+}
+
+predicate isControllerFile(File file) {
+  file.getRelativePath().regexpMatch("backend/controllers/.*\\.js")
+}
+
+predicate isServiceFile(File file) {
+  file.getRelativePath().regexpMatch("backend/services/.*\\.js")
+}
+
+predicate isRepositoryFile(File file) {
+  file.getRelativePath().regexpMatch("backend/repositories/.*\\.js")
+}
+
+predicate isModelFile(File file) {
+  file.getRelativePath().regexpMatch("backend/models/.*\\.js")
 }
 
 predicate isRequireCall(CallExpr call, string importedPath) {
@@ -26,33 +42,41 @@ predicate isRequireCall(CallExpr call, string importedPath) {
   )
 }
 
-predicate architectureViolation(CallExpr call, string message) {
-  exists(string importedPath |
-    isRequireCall(call, importedPath) and
+predicate architectureViolation(CallExpr call, string importedPath, string message) {
+  isRequireCall(call, importedPath) and
+  (
     (
-      isBackendLayer(call.getFile(), "routes") and
+      isRouteFile(call.getFile()) and
       importedPath.regexpMatch("\\.\\./(services|repositories|models)/.*") and
       message = "Routes must call controllers only. Do not import services, repositories, or models from routes."
-      or
-      isBackendLayer(call.getFile(), "controllers") and
+    )
+    or
+    (
+      isControllerFile(call.getFile()) and
       importedPath.regexpMatch("\\.\\./(repositories|models)/.*") and
       message = "Controllers must call services only. Do not import repositories or models from controllers."
-      or
-      isBackendLayer(call.getFile(), "services") and
+    )
+    or
+    (
+      isServiceFile(call.getFile()) and
       importedPath.regexpMatch("\\.\\./models/.*") and
       message = "Services must use repositories for database access. Do not import models from services."
-      or
-      isBackendLayer(call.getFile(), "repositories") and
+    )
+    or
+    (
+      isRepositoryFile(call.getFile()) and
       importedPath.regexpMatch("\\.\\./(routes|controllers|services)/.*") and
       message = "Repositories must not depend on routes, controllers, or services."
-      or
-      isBackendLayer(call.getFile(), "models") and
+    )
+    or
+    (
+      isModelFile(call.getFile()) and
       importedPath.regexpMatch("\\.\\./(routes|controllers|services|repositories)/.*") and
       message = "Models must not depend on application layers."
     )
   )
 }
 
-from CallExpr call, string message
-where architectureViolation(call, message)
-select call, message
+from CallExpr call, string importedPath, string message
+where architectureViolation(call, importedPath, message)
+select call, message + " Imported path: '" + importedPath + "'."
