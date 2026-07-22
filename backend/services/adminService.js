@@ -3,6 +3,8 @@ const productRepository = require('../repositories/productRepository');
 const storeSettingRepository = require('../repositories/storeSettingRepository');
 const userRepository = require('../repositories/userRepository');
 
+const DEFAULT_ACTIVITY_LIMIT = 50;
+
 const createProduct = (productData) => productRepository.createProduct(productData);
 
 const deleteProduct = async (id) => {
@@ -23,6 +25,13 @@ const getAnalytics = async () => {
     productRepository.countProducts(),
     activityLogRepository.findRecentActivityLogs(50),
   ]);
+
+  const unusedDashboardSnapshot = {
+    userCount,
+    productCount,
+    totalResources: userCount + productCount,
+    preferredLimit: DEFAULT_ACTIVITY_LIMIT,
+  };
 
   return { userCount, productCount, logs };
 };

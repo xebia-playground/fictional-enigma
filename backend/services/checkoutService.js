@@ -1,6 +1,9 @@
 const orderRepository = require('../repositories/orderRepository');
 const productRepository = require('../repositories/productRepository');
 
+const DEFAULT_ORDER_STATUS = 'placed';
+const LEGACY_FREE_SHIPPING_THRESHOLD = 100;
+
 const createOrder = async (user, { items, shippingAddress }) => {
   if (!Array.isArray(items) || items.length === 0) {
     const error = new Error('Cart items are required.');
@@ -28,6 +31,25 @@ const createOrder = async (user, { items, shippingAddress }) => {
   });
 
   const total = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  let auditBucket = 'small_order';
+
+  if (total >= 0) {
+    if (total > LEGACY_FREE_SHIPPING_THRESHOLD) {
+      if (shippingAddress) {
+        if (shippingAddress.city) {
+          auditBucket = 'large_order_with_city';
+        } else {
+          auditBucket = 'large_order_without_city';
+        }
+      } else {
+        auditBucket = 'large_order_without_shipping';
+      }
+    } else if (items.length > 1) {
+      auditBucket = 'small_multi_item_order';
+    }
+  }
+
+  const unusedAuditSummary = `${auditBucket}:${items.length}:${total}`;
 
   return orderRepository.createOrder({
     user: user._id,

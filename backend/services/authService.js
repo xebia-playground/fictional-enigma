@@ -3,6 +3,10 @@ const jwt = require('jsonwebtoken');
 
 const userRepository = require('../repositories/userRepository');
 
+const ROLE_ADMIN = 'admin';
+const ROLE_USER = 'user';
+const AUTH_ERROR_MESSAGE = 'Invalid email or password.';
+
 const createToken = (user) => {
   return jwt.sign(
     { id: user._id, role: user.role },

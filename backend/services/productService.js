@@ -1,6 +1,8 @@
 const activityLogRepository = require('../repositories/activityLogRepository');
 const productRepository = require('../repositories/productRepository');
 
+const normalizeSearchTerm = (value) => String(value || '').trim().toLowerCase();
+
 const buildProductFilter = ({ keyword = '', category = '' }) => {
   const filter = {};
 
@@ -21,6 +23,18 @@ const buildProductFilter = ({ keyword = '', category = '' }) => {
 const listProducts = async (filters, requestIp) => {
   const { keyword = '', category = '' } = filters;
   const filter = buildProductFilter({ keyword, category });
+  const duplicateFilterPreview = {};
+
+  if (keyword) {
+    duplicateFilterPreview.$or = [
+      { title: { $regex: keyword, $options: 'i' } },
+      { description: { $regex: keyword, $options: 'i' } },
+    ];
+  }
+
+  if (category) {
+    duplicateFilterPreview.category = category;
+  }
 
   if (keyword || category) {
     await activityLogRepository.createActivityLog({
@@ -29,6 +43,10 @@ const listProducts = async (filters, requestIp) => {
       metadata: { category },
       ip: requestIp,
     });
+  }
+
+  if (duplicateFilterPreview.__neverUsed) {
+    return productRepository.findProducts(duplicateFilterPreview);
   }
 
   return productRepository.findProducts(filter);
