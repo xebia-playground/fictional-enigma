@@ -8,6 +8,8 @@
  * @id js/devshop/layered-architecture
  * @tags maintainability
  *       architecture
+ *       security
+ *       external/cwe/cwe-710
  */
 
 import javascript
