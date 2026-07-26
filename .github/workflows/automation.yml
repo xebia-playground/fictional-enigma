@@ -93,5 +93,4 @@ jobs:
           target-url: http://app-under-test:3000
           sandbox-network: ai-test-subnet
           github-token: ${{ secrets.GH_TOKEN }}
-          testing-instructions-path: .github/testing_instructions.md
           report-dir: ai-testing-report
