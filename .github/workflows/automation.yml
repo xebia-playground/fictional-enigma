@@ -3,24 +3,69 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 
 jobs:
   ai-testing:
+    name: Build and Run App on Internal Network
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Create Docker internal network
-      run: |
-            docker network create --internal ai-test-subnet
+      - name: Create Docker internal network
+        run: docker network create --internal ai-test-subnet
 
-    - name: Build Docker image for application
-      run: |
-           docker build \
-            --build-arg VITE_API_BASE_URL="http://host.docker.internal:3000/api" \
+      - name: Start MongoDB container
+        run: |
+          docker run -d \
+            --name mongo \
+            --network ai-test-subnet \
+            mongo:7
+
+      - name: Build backend image
+        run: |
+          docker build \
+            -f backend/Dockerfile \
+            -t backend-under-test-image \
+            ./backend
+
+      - name: Start backend container
+        run: |
+          docker run -d \
+            --name backend \
+            --network ai-test-subnet \
+            -e PORT=3000 \
+            -e MONGODB_URI="mongodb://mongo:27017/devshop_codeql_demo" \
+            backend-under-test-image
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --build-arg VITE_API_BASE_URL="http://backend:3000/api" \
             --build-arg BUILD_COMMAND="npm run build" \
+            --build-arg RUN_COMMAND="npm run preview -- --host 0.0.0.0 --port 3000" \
             -t app-under-test-image .
+
+      - name: Start frontend container
+        run: |
+          docker run -d \
+            --name app-under-test \
+            --network ai-test-subnet \
+            app-under-test-image
+
+      - name: Verify backend health inside network
+        run: |
+          docker run --rm \
+            --network ai-test-subnet \
+            curlimages/curl:8.9.0 \
+            -fsS http://backend:3000/health > /dev/null
+
+      - name: Verify frontend is reachable inside network
+        run: |
+          docker run --rm \
+            --network ai-test-subnet \
+            curlimages/curl:8.9.0 \
+            -fsS http://app-under-test:3000 > /dev/null
