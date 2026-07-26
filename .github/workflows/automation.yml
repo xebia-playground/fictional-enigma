@@ -10,7 +10,6 @@ jobs:
   ai-testing:
     name: Build and Run App on Internal Network
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,21 +55,6 @@ jobs:
             --network ai-test-subnet \
             app-under-test-image
 
-      - name: Debug frontend URL inside internal network
-        continue-on-error: true
-        run: |
-          docker run --rm \
-            --network ai-test-subnet \
-            curlimages/curl:8.9.0 \
-            sh -c '
-              echo "Testing URL: http://app-under-test:3000/index.html";
-              curl -sS -D /tmp/headers.txt -o /tmp/body.html -H "Host: localhost" http://app-under-test:3000/index.html -w "HTTP_STATUS=%{http_code}\n";
-              echo "--- Response headers ---";
-              cat /tmp/headers.txt;
-              echo "--- Response body preview ---";
-              head -n 20 /tmp/body.html;
-            '
-
       - name: Verify backend health inside network
         run: |
           docker run --rm \
@@ -78,14 +62,26 @@ jobs:
             curlimages/curl:8.9.0 \
             -fsS http://backend:3000/health > /dev/null
 
+      - name: Debug frontend status inside network
+        run: |
+          docker run --rm \
+            --network ai-test-subnet \
+            curlimages/curl:8.9.0 \
+            sh -c '
+              echo "Testing URL: http://app-under-test:3000/index.html";
+              curl -sS -D /tmp/headers.txt -o /tmp/body.html http://app-under-test:3000/index.html -w "HTTP_STATUS=%{http_code}\n";
+              echo "--- Response headers ---";
+              cat /tmp/headers.txt;
+              echo "--- Response body preview ---";
+              head -n 20 /tmp/body.html;
+            '
+
       - name: Verify frontend is reachable inside network
         run: |
           docker run --rm \
             --network ai-test-subnet \
             curlimages/curl:8.9.0 \
-            -fsS \
-            -H "Host: localhost" \
-            http://app-under-test:3000/index.html > /dev/null
+            -fsS http://app-under-test:3000/index.html > /dev/null
 
       - name: Run custom AI testing action
         uses: xebia-playground/humpty-dumpty-set-on-a-wall@feature-1
@@ -94,3 +90,10 @@ jobs:
           sandbox-network: ai-test-subnet
           github-token: ${{ secrets.GH_TOKEN }}
           report-dir: ai-testing-report
+
+      - name: Upload AI testing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-testing-report
+          path: ai-testing-report
