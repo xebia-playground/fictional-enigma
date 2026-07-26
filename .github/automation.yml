@@ -1,1 +1,26 @@
+name: AI Testing
+on:
+  workflow_dispatch:
 
+permissions:
+  contents: write
+
+
+jobs:
+  ai-testing:
+  runs-on: ubuntu-latest
+
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create Docker internal network
+      run: |
+            docker network create --internal ai-test-subnet
+
+    - name: Build Docker image for application
+      run: |
+           docker build \
+            --build-arg VITE_API_BASE_URL="http://host.docker.internal:3000/api" \
+            --build-arg BUILD_COMMAND="npm run build" \
+            -t app-under-test-image .
