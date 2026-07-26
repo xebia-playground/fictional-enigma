@@ -56,6 +56,21 @@ jobs:
             --network ai-test-subnet \
             app-under-test-image
 
+      - name: Debug frontend URL inside internal network
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            --network ai-test-subnet \
+            curlimages/curl:8.9.0 \
+            sh -c '
+              echo "Testing URL: http://app-under-test:3000/index.html";
+              curl -sS -D /tmp/headers.txt -o /tmp/body.html -H "Host: localhost" http://app-under-test:3000/index.html -w "HTTP_STATUS=%{http_code}\n";
+              echo "--- Response headers ---";
+              cat /tmp/headers.txt;
+              echo "--- Response body preview ---";
+              head -n 20 /tmp/body.html;
+            '
+
       - name: Verify backend health inside network
         run: |
           docker run --rm \
@@ -77,6 +92,6 @@ jobs:
         with:
           target-url: http://app-under-test:3000
           sandbox-network: ai-test-subnet
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_TOKEN }}
           testing-instructions-path: .github/testing_instructions.md
           report-dir: ai-testing-report
